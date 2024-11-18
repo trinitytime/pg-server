@@ -1,5 +1,5 @@
+import { BackendMessageCodes } from './backendMessages'
 import type { BufferWriter } from './bufferWriter'
-import { BackendMessageCodes } from './message'
 import { builtInTypes } from './types'
 
 function toStringValue(value: any) {
