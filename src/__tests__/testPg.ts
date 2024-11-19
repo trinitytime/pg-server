@@ -2,7 +2,7 @@ import { Client } from 'pg'
 import { createServer } from '../server'
 
 const server = createServer()
-await server.listen(15432)
+await server.listen({ port: 22222 })
 
 // const client = new Client({
 //   host: 'localhost',
@@ -13,7 +13,7 @@ await server.listen(15432)
 // })
 
 const client = new Client({
-  connectionString: 'postgres://postgres:any_password@localhost:15432/postgres?aaa=bbb',
+  connectionString: 'postgres://postgres:any_password@localhost:22222/postgres?aaa=bbb',
   // ssl: {
   //   rejectUnauthorized: false, // For self-signed certificates
   // },
@@ -27,3 +27,34 @@ await Promise.resolve()
   .finally(() => client.end())
 
 // await server.close()
+
+// 처음에 디비툴이디 보내오는 쿼리들
+// SET DateStyle = 'ISO';
+// SET client_min_messages = notice;
+// SET client_encoding = 'UNICODE';
+// SET은 update 0 로 반환되는 것이 아니라 그냥 OK로 반환되는 것이다.?
+// select set_config('bytea_output', 'hex', false) from pg_settings where name = 'bytea_output';
+
+// pg_catalog.pg_settings
+/*
+name
+setting
+unit
+category
+short_desc
+extra_desc
+context
+vartype
+source
+min_val
+max_val
+enumvals / text array
+boot_val
+reset_val
+sourcefile
+sourceline / int4
+pending_restart / boolean
+*/
+
+// select version();
+// PostgreSQL 13.4 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 8.3.1 20191121 (Red Hat 8.3.1-5), 64-bit
