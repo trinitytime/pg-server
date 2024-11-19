@@ -70,3 +70,19 @@ export function Query(buffer: Uint8Array) {
 
   return br.cstring()
 }
+
+export function Parse(buffer: Uint8Array) {
+  const br = new BufferReader(buffer)
+
+  const name = br.cstring()
+  const query = br.cstring()
+  const numParams = br.int16()
+
+  const params = []
+  for (let i = 0; i < numParams; i++) {
+    const type = br.int32()
+    params.push(type)
+  }
+
+  return { name, query, params }
+}

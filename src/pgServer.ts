@@ -13,7 +13,7 @@ import {
   SSLResponse,
 } from './protocol/backendMessages'
 import { BufferReceiver } from './protocol/bufferReceiver'
-import { FrontendMessageCodes, PasswordMessage, Query, StartupMessage } from './protocol/frontendMessages'
+import { FrontendMessageCodes, Parse, PasswordMessage, Query, StartupMessage } from './protocol/frontendMessages'
 import { rowDescriptionFromFields } from './protocol/rowDescription'
 
 export interface pgServerOptions {
@@ -219,6 +219,12 @@ export class pgServer {
 
     if (FrontendMessageCodes.Terminate === code) {
       socket.end()
+      return
+    }
+
+    if (FrontendMessageCodes.Parse === code) {
+      const parse = Parse(buffer)
+      console.log('Received parse:', parse)
       return
     }
 
