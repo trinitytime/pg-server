@@ -28,8 +28,8 @@ export class pgServer {
 
   setupServer() {
     const options = {
-      key: fs.readFileSync('./server.key'),
-      cert: fs.readFileSync('./server.crt'),
+      // key: fs.readFileSync('./server.key'),
+      // cert: fs.readFileSync('./server.crt'),
       // ca: fs.readFileSync('./ca-certificate.pem'), // if needed
       rejectUnauthorized: false,
     }
@@ -131,21 +131,23 @@ export class pgServer {
     } else {
       console.log('Received startup message:', startupMessage)
       this.handleConnection(socket)
+      console.log('Sending authentication request')
       socket.write(AuthenticationCleartextPassword())
     }
   }
 
   handleConnection(socket: net.Socket) {
     const receiver = new BufferReceiver()
-    socket.setEncoding('utf8')
+    // socket.setEncoding('utf8')
     socket.on('data', (data) => {
       receiver.parse(new Uint8Array(data), (code, buffer) => {
+        console.log('Received message:', code, buffer)
         this.handleRequest(socket, code, buffer)
       })
     })
 
     socket.on('end', () => {
-      console.log('Client disconnected: ' + clientId)
+      console.log('Client disconnected: ')
     })
 
     socket.on('error', (err) => {
