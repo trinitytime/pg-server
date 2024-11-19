@@ -126,8 +126,5 @@ export function ErrorResponse(message: string) {
 }
 
 export function SSLResponse(accept: boolean) {
-  const writer = new BufferWriter(1)
-  writer.addString(accept ? 'S' : 'N')
-
-  return writer.flush()
+  return new TextEncoder().encode(accept ? 'S' : 'N')
 }
