@@ -130,20 +130,22 @@ export class pgServer {
 
       if (this.isSecure) {
         const secureSocket = new tls.TLSSocket(socket, { isServer: true, ...this.tlsOptions })
-        secureSocket.setEncoding('utf8')
+        // secureSocket.setEncoding('utf8')
         this.handleConnection(secureSocket)
       } else {
-        this.handleConnection(socket)
+        socket.once('data', (data) => {
+          this.handleStartup(socket, new Uint8Array(data))
+        })
+        // this.handleConnection(socket)
       }
       const sslResponse = SSLResponse(this.isSecure)
       socket.write(sslResponse)
     } else {
       console.log('Received startup message:', startupMessage)
       this.handleConnection(socket)
+      console.log('Sending authentication request')
+      socket.write(AuthenticationCleartextPassword())
     }
-
-    console.log('Sending authentication request')
-    socket.write(AuthenticationCleartextPassword())
   }
 
   handleConnection(socket: net.Socket) {
@@ -162,6 +164,7 @@ export class pgServer {
 
     socket.on('error', (err) => {
       console.error('Socket error:', err)
+      socket.destroy()
     })
   }
 
