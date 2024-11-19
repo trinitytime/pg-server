@@ -13,7 +13,14 @@ import {
   SSLResponse,
 } from './protocol/backendMessages'
 import { BufferReceiver } from './protocol/bufferReceiver'
-import { FrontendMessageCodes, Parse, PasswordMessage, Query, StartupMessage } from './protocol/frontendMessages'
+import {
+  Execute,
+  FrontendMessageCodes,
+  Parse,
+  PasswordMessage,
+  Query,
+  StartupMessage,
+} from './protocol/frontendMessages'
 import { rowDescriptionFromFields } from './protocol/rowDescription'
 
 export interface pgServerOptions {
@@ -153,7 +160,7 @@ export class pgServer {
     // socket.setEncoding('utf8')
     socket.on('data', (data) => {
       receiver.parse(new Uint8Array(data), (code, buffer) => {
-        console.log('Received message:', code, buffer)
+        console.log('Received message:', code.toString(16), buffer)
         this.handleRequest(socket, code, buffer)
       })
     })
@@ -225,6 +232,25 @@ export class pgServer {
     if (FrontendMessageCodes.Parse === code) {
       const parse = Parse(buffer)
       console.log('Received parse:', parse)
+      return
+    }
+
+    if (FrontendMessageCodes.Bind === code) {
+      const bind = Parse(buffer)
+      console.log('Received bind:', bind)
+      return
+    }
+
+    if (FrontendMessageCodes.Execute === code) {
+      const execute = Execute(buffer)
+      console.log('Received execute:', execute)
+      return
+    }
+
+    if (FrontendMessageCodes.Sync === code) {
+      console.log('Received sync')
+      socket.write(CommandComplete('UPDATE', 0))
+      socket.write(ReadyForQuery())
       return
     }
 

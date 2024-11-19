@@ -86,3 +86,45 @@ export function Parse(buffer: Uint8Array) {
 
   return { name, query, params }
 }
+
+export function Bind(buffer: Uint8Array) {
+  const br = new BufferReader(buffer)
+
+  const portal = br.cstring()
+  const statement = br.cstring()
+  const numFormats = br.int16()
+
+  const formats = []
+  for (let i = 0; i < numFormats; i++) {
+    formats.push(br.int16())
+  }
+
+  const numParams = br.int16()
+  const params = []
+  for (let i = 0; i < numParams; i++) {
+    const length = br.int32()
+    const value = br.bytes(length)
+    params.push(value)
+  }
+
+  const numResultsFormats = br.int16()
+  const resultsFormats = []
+  for (let i = 0; i < numResultsFormats; i++) {
+    resultsFormats.push(br.int16())
+  }
+
+  return { portal, statement, formats, params, resultsFormats }
+}
+
+export function Execute(buffer: Uint8Array) {
+  const br = new BufferReader(buffer)
+
+  const portal = br.cstring()
+  const maxRows = br.int32()
+
+  return { portal, maxRows }
+}
+
+export function Sync(buffer: Uint8Array) {
+  return {}
+}
