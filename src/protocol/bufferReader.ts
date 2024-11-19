@@ -7,7 +7,7 @@ export class BufferReader {
 
   constructor(buffer: Uint8Array, offset = 0) {
     this.buffer = buffer
-    this.dataView = new DataView(this.buffer.buffer)
+    this.dataView = new DataView(this.buffer.buffer, buffer.byteOffset)
     this.offset = offset
   }
 
@@ -18,7 +18,7 @@ export class BufferReader {
   public setBuffer(offset: number, buffer: Uint8Array): void {
     this.offset = offset
     this.buffer = buffer
-    this.dataView = new DataView(buffer.buffer)
+    this.dataView = new DataView(buffer.buffer, buffer.byteOffset)
   }
 
   public byte(): number {
