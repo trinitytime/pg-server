@@ -5,9 +5,11 @@ import {
   AuthenticationCleartextPassword,
   AuthenticationOk,
   BackendKeyData,
+  BindComplete,
   CommandComplete,
   DataRow,
   ParameterStatus,
+  ParseComplete,
   ReadyForQuery,
   RowDescription,
   SSLResponse,
@@ -232,24 +234,26 @@ export class pgServer {
     if (FrontendMessageCodes.Parse === code) {
       const parse = Parse(buffer)
       console.log('Received parse:', parse)
+      socket.write(ParseComplete())
       return
     }
 
     if (FrontendMessageCodes.Bind === code) {
       const bind = Parse(buffer)
       console.log('Received bind:', bind)
+      socket.write(BindComplete())
       return
     }
 
     if (FrontendMessageCodes.Execute === code) {
       const execute = Execute(buffer)
       console.log('Received execute:', execute)
+      socket.write(CommandComplete('UPDATE', 0))
       return
     }
 
     if (FrontendMessageCodes.Sync === code) {
       console.log('Received sync')
-      socket.write(CommandComplete('UPDATE', 0))
       socket.write(ReadyForQuery())
       return
     }

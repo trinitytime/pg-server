@@ -99,6 +99,20 @@ export function DataRow(desc: Record<string, number>, row: Record<string, any> |
   return writeDataRow(new BufferWriter(), desc, values)
 }
 
+export function ParseComplete() {
+  const writer = new BufferWriter(5)
+  writer.addCode(BackendMessageCodes.ParseComplete)
+
+  return writer.flush()
+}
+
+export function BindComplete() {
+  const writer = new BufferWriter(5)
+  writer.addCode(BackendMessageCodes.BindComplete)
+
+  return writer.flush()
+}
+
 export function CommandComplete(command: string, rowCount: number) {
   const commandTag = `${command} ${rowCount}`
   const writer = new BufferWriter(commandTag.length + 6)
