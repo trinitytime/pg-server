@@ -1,15 +1,13 @@
-import { pgServer } from './pgServer'
+import { pgServer, type pgServerOptions } from './pgServer'
 
 export class Server {
   server: pgServer = new pgServer()
 
-  async listen(port: number) {
-    await this.server.listen(port)
-
-    return this
+  async listen(options: pgServerOptions) {
+    return this.server.listen(options)
   }
 
-  async close() {2
+  async close() {
     await this.server.close()
 
     return this

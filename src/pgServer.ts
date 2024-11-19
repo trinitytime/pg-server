@@ -16,6 +16,12 @@ import { BufferReceiver } from './protocol/bufferReceiver'
 import { FrontendMessageCodes, PasswordMessage, Query, StartupMessage } from './protocol/frontendMessages'
 import { rowDescriptionFromFields } from './protocol/rowDescription'
 
+export interface pgServerOptions {
+  port: number
+  hostname?: string
+  path?: string
+}
+
 export class pgServer {
   clientId = 0
   server: net.Server = net.createServer()
@@ -96,10 +102,14 @@ export class pgServer {
     })
   }
 
-  listen(port: number) {
+  listen({ port, hostname, path }: pgServerOptions) {
     const { promise, resolve, reject } = Promise.withResolvers()
 
-    this.server.listen(port, resolve)
+    if (path) {
+      this.server.listen(path, resolve)
+    } else {
+      this.server.listen(port, hostname, resolve)
+    }
 
     return promise
   }
@@ -125,15 +135,15 @@ export class pgServer {
       } else {
         this.handleConnection(socket)
       }
-
       const sslResponse = SSLResponse(this.isSecure)
       socket.write(sslResponse)
     } else {
       console.log('Received startup message:', startupMessage)
       this.handleConnection(socket)
-      console.log('Sending authentication request')
-      socket.write(AuthenticationCleartextPassword())
     }
+
+    console.log('Sending authentication request')
+    socket.write(AuthenticationCleartextPassword())
   }
 
   handleConnection(socket: net.Socket) {
