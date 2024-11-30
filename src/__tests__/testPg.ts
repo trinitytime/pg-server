@@ -21,17 +21,25 @@ const client = new Client({
 
 await Promise.resolve()
   .then(() => client.connect())
-  .then(() => client.query('SELECT * FROM users'))
+  .then(() => {
+    client
+    client.query('SELECT * FROM users')
+  })
+  .then((result) => console.log(result.rows))
+  .then(() => client.query('SELECT $1::text as name', ['brianc']))
   .then((result) => console.log(result.rows))
   .catch((err) => console.error(err))
   .finally(() => client.end())
 
-// await server.close()
+await server.close()
 
 // 처음에 디비툴이디 보내오는 쿼리들
 // SET DateStyle = 'ISO';
 // SET client_min_messages = notice;
 // SET client_encoding = 'UNICODE';
+
+// SET extra_float_digits = 3;
+
 // SET은 update 0 로 반환되는 것이 아니라 그냥 OK로 반환되는 것이다.?
 // select set_config('bytea_output', 'hex', false) from pg_settings where name = 'bytea_output';
 
@@ -58,3 +66,8 @@ pending_restart / boolean
 
 // select version();
 // PostgreSQL 13.4 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 8.3.1 20191121 (Red Hat 8.3.1-5), 64-bit
+
+// Parse
+// Bind
+// Execute
+// Sync
