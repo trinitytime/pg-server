@@ -16,6 +16,7 @@ import {
 } from './protocol/backendMessages'
 import { BufferReceiver } from './protocol/bufferReceiver'
 import {
+  Bind,
   Execute,
   FrontendMessageCodes,
   Parse,
@@ -139,13 +140,11 @@ export class pgServer {
 
       if (this.isSecure) {
         const secureSocket = new tls.TLSSocket(socket, { isServer: true, ...this.tlsOptions })
-        // secureSocket.setEncoding('utf8')
         this.handleConnection(secureSocket)
       } else {
         socket.once('data', (data) => {
           this.handleStartup(socket, new Uint8Array(data))
         })
-        // this.handleConnection(socket)
       }
       const sslResponse = SSLResponse(this.isSecure)
       socket.write(sslResponse)
@@ -239,7 +238,7 @@ export class pgServer {
     }
 
     if (FrontendMessageCodes.Bind === code) {
-      const bind = Parse(buffer)
+      const bind = Bind(buffer)
       console.log('Received bind:', bind)
       socket.write(BindComplete())
       return
