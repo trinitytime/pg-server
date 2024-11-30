@@ -103,8 +103,18 @@ export function Bind(buffer: Uint8Array) {
   const params = []
   for (let i = 0; i < numParams; i++) {
     const length = br.int32()
-    const value = br.bytes(length)
-    params.push(value)
+    if (length === -1) {
+      params.push(null)
+      continue
+    }
+
+    if (formats[i] === 0) {
+      const value = br.string(length)
+      params.push(value)
+    } else {
+      const value = br.bytes(length)
+      params.push(value)
+    }
   }
 
   const numResultsFormats = br.int16()
@@ -127,4 +137,13 @@ export function Execute(buffer: Uint8Array) {
 
 export function Sync(buffer: Uint8Array) {
   return {}
+}
+
+export function Describe(buffer: Uint8Array) {
+  const br = new BufferReader(buffer)
+
+  const type = br.byte() // 'P' for portal, 'S' for statement
+  const name = br.cstring() // name of the portal or statement
+
+  return { type, name }
 }

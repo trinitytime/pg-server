@@ -66,7 +66,7 @@ export class BufferReader {
   }
 
   public bytes(length: number): Uint8Array {
-    const result = this.buffer.subarray(this.offset, length)
+    const result = this.buffer.subarray(this.offset, this.offset + length)
     this.offset += length
     return result
   }
