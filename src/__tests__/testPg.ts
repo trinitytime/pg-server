@@ -1,7 +1,19 @@
 import { Client } from 'pg'
-import { createServer } from '../server'
+import { createServer } from '../server/server'
 
 const server = createServer()
+
+server.query(({ request, response }) => {
+  console.log('Query:', request.query)
+
+  response.setFields({
+    name: String,
+  })
+
+  response.sendRowValues(['brianc'])
+  response.flush()
+})
+
 await server.listen({ port: 22222 })
 
 // const client = new Client({
@@ -22,8 +34,7 @@ const client = new Client({
 await Promise.resolve()
   .then(() => client.connect())
   .then(() => {
-    client
-    client.query('SELECT * FROM users')
+    return client.query('SELECT * FROM users')
   })
   .then((result) => console.log(result.rows))
   .then(() => client.query('SELECT $1::text as name', ['brianc']))

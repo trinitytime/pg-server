@@ -1,30 +1,16 @@
-import fs from 'node:fs'
 import net from 'node:net'
 import tls from 'node:tls'
 import {
   AuthenticationCleartextPassword,
   AuthenticationOk,
   BackendKeyData,
-  BindComplete,
-  CommandComplete,
-  DataRow,
   ParameterStatus,
-  ParseComplete,
   ReadyForQuery,
-  RowDescription,
   SSLResponse,
 } from './protocol/backendMessages'
-import { BufferReceiver } from './protocol/bufferReceiver'
-import {
-  Bind,
-  Execute,
-  FrontendMessageCodes,
-  Parse,
-  PasswordMessage,
-  Query,
-  StartupMessage,
-} from './protocol/frontendMessages'
-import { rowDescriptionFromFields } from './protocol/rowDescription'
+import { FrontendMessageCodes, PasswordMessage, StartupMessage } from './protocol/frontendMessages'
+import type { Context } from './server/context'
+import { Session } from './server/session'
 
 export interface pgServerOptions {
   port: number
@@ -32,82 +18,53 @@ export interface pgServerOptions {
   path?: string
 }
 
-export class pgServer {
-  clientId = 0
-  server: net.Server = net.createServer()
-  tlsOptions: tls.TlsOptions = {}
-  isSecure = false
-
-  constructor() {
-    this.setupServer()
+class EventHandler {
+  query(_context: Context): any {
+    return []
   }
 
-  setupServer() {
-    const options = {
-      // key: fs.readFileSync('./server.key'),
-      // cert: fs.readFileSync('./server.crt'),
-      // ca: fs.readFileSync('./ca-certificate.pem'), // if needed
+  error(err: Error) {
+    console.error(err)
+  }
+}
+
+function sendParameters(socket: net.Socket, headers: Record<string, string>) {
+  for (const [key, value] of Object.entries(headers)) {
+    socket.write(ParameterStatus(key, value))
+  }
+  socket.write(BackendKeyData())
+}
+
+export class pgServer {
+  event = new EventHandler()
+  headers = {
+    server_version: '14.0',
+    server_encoding: 'UTF8',
+    client_encoding: 'UTF8',
+    DateStyle: 'ISO, MDY',
+  }
+
+  server: net.Server = net.createServer()
+  tlsOptions: tls.TlsOptions = {}
+  isSecure = false // https or not
+  isPassword = false // password or not
+
+  #sessions: Session[] = []
+
+  constructor(options = {}, headers = {}) {
+    this.headers = { ...this.headers, ...headers }
+    this.setupServer(options)
+  }
+
+  setupServer(options: Record<string, any>) {
+    const opts = {
       rejectUnauthorized: false,
+      ...options,
     }
 
-    // if ssl
-    // this.server = tls.createServer(options, (socket) => {
-    //   console.log('Server connected', socket.authorized ? 'authorized' : 'unauthorized')
-    //   socket.setKeepAlive(true)
-    //   socket.on('error', (err) => {
-    //     console.error('Socket error:', err)
-    //     socket.destroy()
-    //   })
-    //   socket.on('close', () => {
-    //     console.log('Client connection closed')
-    //   })
-
-    //   socket.write('welcome!\n')
-    //   socket.setEncoding('utf8')
-    //   socket.pipe(socket)
-    // })
-
     this.server.on('connection', (socket) => {
-      const clientId = ++this.clientId
-      console.log('New client connected: ' + clientId)
-
-      let authenticationComplete = false
-      const receiver = new BufferReceiver()
-
       socket.once('data', (data) => {
         this.handleStartup(socket, new Uint8Array(data))
-      })
-
-      socket.on('data2', (data) => {
-        console.log('Received data from client:', clientId)
-        const message = new Uint8Array(data)
-
-        // const combinedBuffer = new Uint8Array(buffer.byteLength + data.length)
-        // combinedBuffer.set(buffer, 0)
-        // combinedBuffer.set(data, buffer.length)
-        // buffer = combinedBuffer
-
-        // 클라이언트로부터 받은 메시지 처리
-        if (!authenticationComplete) {
-          this.handleStartup(socket, message)
-          authenticationComplete = true
-          // buffer = new Uint8Array(0)
-        } else {
-          receiver.parse(message, (code, buffer) => {
-            this.handleRequest(socket, code, buffer)
-            // console.log('Received message:', message)
-          })
-          // this.handleQuery(socket, buffer)
-          // buffer = new Uint8Array(0)
-        }
-      })
-
-      socket.on('end', () => {
-        console.log('Client disconnected: ' + clientId)
-      })
-
-      socket.on('error', (err) => {
-        console.error('Socket error:', err)
       })
     })
   }
@@ -136,8 +93,6 @@ export class pgServer {
     const startupMessage = StartupMessage(buffer)
 
     if (startupMessage.isSecure) {
-      console.log('Received SSL request:', startupMessage)
-
       if (this.isSecure) {
         const secureSocket = new tls.TLSSocket(socket, { isServer: true, ...this.tlsOptions })
         this.handleConnection(secureSocket)
@@ -146,117 +101,55 @@ export class pgServer {
           this.handleStartup(socket, new Uint8Array(data))
         })
       }
-      const sslResponse = SSLResponse(this.isSecure)
-      socket.write(sslResponse)
+
+      socket.write(SSLResponse(this.isSecure))
+      if (!this.isSecure) {
+        // 다시 읽기 위해 리턴
+        return
+      }
     } else {
-      console.log('Received startup message:', startupMessage)
       this.handleConnection(socket)
-      console.log('Sending authentication request')
+    }
+
+    if (this.isPassword) {
       socket.write(AuthenticationCleartextPassword())
+    } else {
+      sendParameters(socket, this.headers)
+      socket.write(ReadyForQuery())
     }
   }
 
-  handleConnection(socket: net.Socket) {
-    const receiver = new BufferReceiver()
-    // socket.setEncoding('utf8')
-    socket.on('data', (data) => {
-      receiver.parse(new Uint8Array(data), (code, buffer) => {
-        console.log('Received message:', code.toString(16), buffer)
-        this.handleRequest(socket, code, buffer)
-      })
+  handleConnection(socket: net.Socket, startupMessage: Record<string, any> = {}) {
+    const session = new Session(socket, startupMessage)
+
+    session.onQuery(async (context) => {
+      return await this.event.query(context)
     })
 
+    session.onMessage((code, buffer) => {
+      switch (code) {
+        case FrontendMessageCodes.PasswordMessage: {
+          // 모든 응답 전송
+          const password = PasswordMessage(buffer)
+          // TODO: check password
+          socket.write(AuthenticationOk())
+          sendParameters(socket, this.headers)
+          socket.write(ReadyForQuery())
+          break
+        }
+      }
+    })
+
+    this.#sessions.push(session)
+
     socket.on('end', () => {
-      console.log('Client disconnected: ')
+      this.#sessions = this.#sessions.filter((s) => s !== session)
     })
 
     socket.on('error', (err) => {
-      console.error('Socket error:', err)
-      socket.destroy()
+      Promise.resolve()
+        .then(() => this.event.error(err))
+        .then(() => socket.destroy())
     })
-  }
-
-  handleRequest(socket: net.Socket, code: number, buffer: Uint8Array) {
-    console.log('handleRequest:', code, buffer)
-
-    if (FrontendMessageCodes.PasswordMessage === code) {
-      // 모든 응답 전송
-      const password = PasswordMessage(buffer)
-      console.log('Received password: ', password)
-      socket.write(AuthenticationOk())
-      socket.write(ParameterStatus('server_version', '14.0'))
-      socket.write(ParameterStatus('server_encoding', 'UTF8'))
-      socket.write(ParameterStatus('client_encoding', 'UTF8'))
-      socket.write(ParameterStatus('DateStyle', 'ISO, MDY'))
-      socket.write(BackendKeyData())
-      socket.write(ReadyForQuery())
-      return
-    }
-
-    if (FrontendMessageCodes.Query === code) {
-      const query = Query(buffer)
-      console.log('Received query:', query)
-
-      // 샘플 응답 데이터 생성
-      const fields = {
-        id: String,
-        name: String,
-        age: Number,
-        created: Date,
-        success: Boolean,
-        comment: String,
-      }
-
-      const rows = [
-        [1, 'Test User 1', 30, new Date().toISOString(), true, 'comment'],
-        [2, '사용자 2', 55, new Date(), false, null],
-      ]
-
-      const desc = rowDescriptionFromFields(fields)
-
-      socket.write(RowDescription(desc))
-      const r1 = DataRow(desc, rows[0])
-      // console.log('row1:', r1)
-      socket.write(r1)
-      socket.write(DataRow(desc, rows[1]))
-      socket.write(CommandComplete('SELECT', rows.length))
-      socket.write(ReadyForQuery())
-
-      return
-    }
-
-    if (FrontendMessageCodes.Terminate === code) {
-      socket.end()
-      return
-    }
-
-    if (FrontendMessageCodes.Parse === code) {
-      const parse = Parse(buffer)
-      console.log('Received parse:', parse)
-      socket.write(ParseComplete())
-      return
-    }
-
-    if (FrontendMessageCodes.Bind === code) {
-      const bind = Bind(buffer)
-      console.log('Received bind:', bind)
-      socket.write(BindComplete())
-      return
-    }
-
-    if (FrontendMessageCodes.Execute === code) {
-      const execute = Execute(buffer)
-      console.log('Received execute:', execute)
-      socket.write(CommandComplete('UPDATE', 0))
-      return
-    }
-
-    if (FrontendMessageCodes.Sync === code) {
-      console.log('Received sync')
-      socket.write(ReadyForQuery())
-      return
-    }
-
-    console.error('Unknown message code:', code)
   }
 }

@@ -2,8 +2,11 @@ export class Request {
   #query: string | null = null
   #params: any[] = []
 
-  constructor({ query }: { query: string }) {
+  command = 'SELECT'
+
+  constructor({ query, params }: { query: string; params: any[] }) {
     this.#query = query
+    this.#params = params
   }
 
   set query(query: string) {

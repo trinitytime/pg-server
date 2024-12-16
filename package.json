@@ -1,5 +1,6 @@
 {
-  "name": "@trinitytime/pg-server",
+  "name": "@tt/pg-server",
+  "version": "1.0.0",
   "module": "index.ts",
   "devDependencies": {
     "@types/bun": "latest",
@@ -9,5 +10,11 @@
   "peerDependencies": {
     "typescript": "^5.7.2"
   },
-  "type": "module"
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "bun": "./src/index.ts"
+    }
+  }
 }

@@ -85,7 +85,6 @@ export class BufferReceiver {
     }
 
     if (offset === bufferFullLength) {
-      console.log('No more data in buffer')
       // No more use for the buffer
       this.buffer = emptyBuffer
       this.bufferLength = 0

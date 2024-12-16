@@ -1,5 +1,5 @@
+import { AuthenticationOk, DataRow, ParameterStatus, ReadyForQuery } from '../protocol/backendMessages'
 import { BufferReader } from '../protocol/bufferReader'
-import { AuthenticationOk, DataRow, ParameterStatus, ReadyForQuery } from '../protocol/message'
 import { rowDescriptionFromFields } from '../protocol/rowDescription'
 
 console.log(AuthenticationOk())

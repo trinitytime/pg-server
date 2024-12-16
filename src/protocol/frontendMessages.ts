@@ -24,7 +24,17 @@ export const FrontendMessageCodes = {
   Terminate: 0x58, // 'X'
 } as const
 
-export function StartupMessage(buffer: Uint8Array) {
+export function getCodeName(code: number): string {
+  for (const [key, value] of Object.entries(FrontendMessageCodes)) {
+    if (value === code) {
+      return key
+    }
+  }
+
+  return 'Unknown'
+}
+
+export function StartupMessage(buffer: Uint8Array): Record<string, any> {
   const br = new BufferReader(buffer)
   const length = br.int32()
   const version = br.int32()
